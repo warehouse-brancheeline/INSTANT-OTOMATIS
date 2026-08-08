@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WEB INSTANT — Proses Instant Jubelio</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="wrap">
+    <h1>WEB INSTANT</h1>
+    <p class="subtitle">Otomatisasi print resi &amp; panggil kurir instant (Jubelio)</p>
+
+    <section class="card">
+      <div class="row space-between">
+        <div>
+          <h2>Proses Instant</h2>
+          <p class="muted">Kalau aktif: begitu order kurir instant muncul (dicek tiap <strong>5 menit</strong>), langsung proses pesanan + buat &amp; selesaikan picklist (qty penuh, TANPA verifikasi fisik) + cetak resi + siap kirim. Lalu <strong id="dispatch-delay-label">30 menit</strong> setelah resi dicetak (dihitung per order, bukan jam bulat): Gojek/Grab → panggil driver, kurir instant lainnya (SPX Instant, dst.) → siap kirim saja, kurir non-instant → buat pengiriman.</p>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggle-enabled" />
+          <span class="slider"></span>
+        </label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Pengaturan</h2>
+      <div class="row">
+        <label for="employee-id">Email Picker (yang di-assign ke picklist otomatis)</label>
+        <div class="row">
+          <input type="text" id="employee-id" placeholder="email@contoh.com" />
+          <button id="save-employee">Simpan</button>
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <label for="shipper-nik">ID Shipper untuk Panggil Driver (sama seperti "Scan ID Shipper" di Jubelio, huruf besar/kecil harus persis)</label>
+        <div class="row">
+          <input type="text" id="shipper-nik" placeholder="Admin-MP" />
+          <button id="save-shipper">Simpan</button>
+        </div>
+      </div>
+      <div class="row space-between" style="margin-top:12px">
+        <label for="toggle-print-picklist">Cetak Picklist (matikan kalau cuma mau selesaikan picking tanpa print kertas)</label>
+        <label class="switch">
+          <input type="checkbox" id="toggle-print-picklist" />
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <label for="dispatch-delay-minutes">Jeda sebelum panggil kurir (menit setelah resi dicetak)</label>
+        <div class="row">
+          <input type="text" id="dispatch-delay-minutes" placeholder="30" style="max-width:100px" />
+          <button id="save-dispatch-delay">Simpan</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card restrict-card">
+      <h2>Mode Uji Terbatas</h2>
+      <p class="muted">Kalau diisi, sistem <strong>hanya</strong> memproses No. Pesanan ini — order asli lain tidak akan tersentuh. Kosongkan untuk kembali ke mode normal (semua order instant).</p>
+      <div class="row">
+        <label for="restrict-order-no">Batasi ke No. Pesanan (pisahkan koma kalau lebih dari satu)</label>
+        <div class="row">
+          <input type="text" id="restrict-order-no" placeholder="SO-000275819" />
+          <button id="save-restrict">Simpan</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Status</h2>
+      <div id="status" class="status-grid muted">Memuat...</div>
+    </section>
+
+    <section class="card">
+      <h2>Debug / Test Manual (siklus otomatis)</h2>
+      <p class="muted">Jalankan siklus penuh sekarang tanpa nunggu jadwal. Picklist mencakup cetak resi + siap kirim otomatis. Trigger Dispatch cuma memproses order yang resinya sudah dicetak &gt;= jeda menit yang diatur di atas.</p>
+      <div class="row">
+        <button id="trigger-picklist">Trigger Picklist Now</button>
+        <button id="trigger-print">Trigger Print Now</button>
+        <button id="trigger-dispatch">Trigger Dispatch Now</button>
+      </div>
+      <p id="trigger-result" class="muted"></p>
+    </section>
+
+    <section class="card">
+      <h2>Debug / Test Manual (per langkah)</h2>
+      <p class="muted">Satu aksi per tombol, tidak lanjut ke tahap berikutnya. Selalu hanya menyentuh No. Pesanan di Mode Uji Terbatas di atas.</p>
+      <div class="row">
+        <button id="manual-picklist">Trigger Picklist Now</button>
+        <button id="manual-print-resi">Trigger Print Resi Now</button>
+        <button id="manual-siap-kirim">Trigger Siap Dikirim Now</button>
+        <button id="manual-selesaikan">Trigger Selesaikan Now</button>
+        <button id="manual-buat-pengiriman">Trigger Buat Pengiriman (selain Gojek dan Grab)</button>
+        <button id="manual-panggil-driver">Trigger Panggil Driver (Only Gojek dan Grab)</button>
+      </div>
+      <p id="manual-result" class="muted"></p>
+    </section>
+
+    <section class="card">
+      <h2>Activity Log</h2>
+      <p class="muted">Dikelompokkan per picklist — klik baris untuk lihat semua resi di dalamnya.</p>
+      <div id="log-groups"></div>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
