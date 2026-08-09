@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>WEB INSTANT — Dashboard</title>
+<style>
+  :root {
+    --bg: #f2f0ea;
+    --surface: #ffffff;
+    --ink: #20242b;
+    --ink-muted: #5b6069;
+    --line: #dad6cb;
+    --accent: #c4571f;
+    --fail-bg: #f7e6e4;
+    --fail-ink: #b23a32;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171c;
+      --surface: #1b1f26;
+      --ink: #edebe4;
+      --ink-muted: #9ba0a8;
+      --line: #2b2f37;
+      --accent: #e2793d;
+      --fail-bg: #2c1a18;
+      --fail-ink: #e28179;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 36px 32px;
+    max-width: 420px;
+    width: calc(100% - 48px);
+    text-align: center;
+  }
+  .label {
+    font-family: "Bahnschrift", "Segoe UI Semibold", "Arial Narrow", sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 12px;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  h1 {
+    font-family: "Bahnschrift", "Segoe UI Semibold", "Arial Narrow", sans-serif;
+    font-size: 22px;
+    margin: 0 0 18px;
+  }
+  p { color: var(--ink-muted); font-size: 14.5px; margin: 0 0 20px; line-height: 1.6; }
+  .spinner {
+    width: 22px;
+    height: 22px;
+    border: 3px solid var(--line);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    margin: 0 auto 20px;
+    animation: spin 0.8s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .spinner { animation: none; }
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  a.manual {
+    display: inline-block;
+    color: var(--accent);
+    font-size: 14px;
+    text-decoration: none;
+    border-bottom: 1px solid currentColor;
+  }
+  .error {
+    display: none;
+    background: var(--fail-bg);
+    color: var(--fail-ink);
+    border-radius: 4px;
+    padding: 10px 14px;
+    font-size: 13.5px;
+    margin-bottom: 16px;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="label">BCL Gudang Pusat</div>
+    <h1>WEB INSTANT</h1>
+    <div class="spinner" id="spinner"></div>
+    <p id="status">Menghubungkan ke dashboard...</p>
+    <div class="error" id="error">Tidak bisa memuat link dashboard. Coba muat ulang halaman ini.</div>
+    <a class="manual" id="manual-link" href="#" style="display:none">Buka manual kalau tidak otomatis pindah</a>
+  </div>
+  <script>
+    fetch('tunnel-url.txt?t=' + Date.now(), { cache: 'no-store' })
+      .then((res) => {
+        if (!res.ok) throw new Error('not ok');
+        return res.text();
+      })
+      .then((text) => {
+        const url = text.trim();
+        if (!url) throw new Error('empty');
+        document.getElementById('manual-link').href = url;
+        document.getElementById('manual-link').style.display = 'inline-block';
+        document.getElementById('status').textContent = 'Memindahkan ke dashboard...';
+        window.location.replace(url);
+      })
+      .catch(() => {
+        document.getElementById('spinner').style.display = 'none';
+        document.getElementById('status').style.display = 'none';
+        document.getElementById('error').style.display = 'block';
+      });
+  </script>
+</body>
+</html>
