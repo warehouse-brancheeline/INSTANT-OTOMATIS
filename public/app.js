@@ -9,6 +9,8 @@ const saveDispatchDelayBtn = document.getElementById('save-dispatch-delay');
 const dispatchDelayLabelEl = document.getElementById('dispatch-delay-label');
 const restrictInput = document.getElementById('restrict-order-no');
 const saveRestrictBtn = document.getElementById('save-restrict');
+const excludeInput = document.getElementById('exclude-order-no');
+const saveExcludeBtn = document.getElementById('save-exclude');
 const statusEl = document.getElementById('status');
 const triggerPicklistBtn = document.getElementById('trigger-picklist');
 const triggerPrintBtn = document.getElementById('trigger-print');
@@ -93,6 +95,7 @@ async function loadSettings() {
   dispatchDelayInput.value = settings.dispatch_delay_minutes || '30';
   dispatchDelayLabelEl.textContent = `${settings.dispatch_delay_minutes || '30'} menit`;
   restrictInput.value = settings.restrict_order_no || '';
+  excludeInput.value = settings.exclude_order_no || '';
 }
 
 async function loadStatus() {
@@ -232,6 +235,16 @@ saveRestrictBtn.addEventListener('click', async () => {
   });
   saveRestrictBtn.textContent = 'Tersimpan';
   setTimeout(() => (saveRestrictBtn.textContent = 'Simpan'), 1200);
+});
+
+saveExcludeBtn.addEventListener('click', async () => {
+  await fetchJSON('/api/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ exclude_order_no: excludeInput.value }),
+  });
+  saveExcludeBtn.textContent = 'Tersimpan';
+  setTimeout(() => (saveExcludeBtn.textContent = 'Simpan'), 1200);
 });
 
 triggerPicklistBtn.addEventListener('click', async () => {

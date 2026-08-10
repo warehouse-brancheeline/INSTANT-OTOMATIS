@@ -7,103 +7,241 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <main class="wrap">
-    <h1>WEB INSTANT</h1>
-    <p class="subtitle">Otomatisasi print resi &amp; panggil kurir instant (Jubelio)</p>
-
-    <section class="card">
-      <div class="row space-between">
+  <div class="page">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-badge" aria-hidden="true"></span>
         <div>
-          <h2>Proses Instant</h2>
-          <p class="muted">Kalau aktif: begitu order kurir instant muncul (dicek tiap <strong>5 menit</strong>), langsung proses pesanan + buat &amp; selesaikan picklist (qty penuh, TANPA verifikasi fisik) + cetak resi + siap kirim. Lalu <strong id="dispatch-delay-label">30 menit</strong> setelah resi dicetak (dihitung per order, bukan jam bulat): Gojek/Grab → panggil driver, kurir instant lainnya (SPX Instant, dst.) → siap kirim saja, kurir non-instant → buat pengiriman.</p>
-        </div>
-        <label class="switch">
-          <input type="checkbox" id="toggle-enabled" />
-          <span class="slider"></span>
-        </label>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2>Pengaturan</h2>
-      <div class="row">
-        <label for="employee-id">Email Picker (yang di-assign ke picklist otomatis)</label>
-        <div class="row">
-          <input type="text" id="employee-id" placeholder="email@contoh.com" />
-          <button id="save-employee">Simpan</button>
+          <h1>WEB INSTANT</h1>
+          <p class="subtitle">Otomatisasi print resi &amp; panggil kurir instant (Jubelio)</p>
         </div>
       </div>
-      <div class="row" style="margin-top:12px">
-        <label for="shipper-nik">ID Shipper untuk Panggil Driver (sama seperti "Scan ID Shipper" di Jubelio, huruf besar/kecil harus persis)</label>
-        <div class="row">
-          <input type="text" id="shipper-nik" placeholder="Admin-MP" />
-          <button id="save-shipper">Simpan</button>
-        </div>
-      </div>
-      <div class="row space-between" style="margin-top:12px">
-        <label for="toggle-print-picklist">Cetak Picklist (matikan kalau cuma mau selesaikan picking tanpa print kertas)</label>
-        <label class="switch">
-          <input type="checkbox" id="toggle-print-picklist" />
-          <span class="slider"></span>
-        </label>
-      </div>
-      <div class="row" style="margin-top:12px">
-        <label for="dispatch-delay-minutes">Jeda sebelum panggil kurir (menit setelah resi dicetak)</label>
-        <div class="row">
-          <input type="text" id="dispatch-delay-minutes" placeholder="30" style="max-width:100px" />
-          <button id="save-dispatch-delay">Simpan</button>
-        </div>
-      </div>
-    </section>
+      <button id="logout-btn">Keluar</button>
+    </header>
 
-    <section class="card restrict-card">
-      <h2>Mode Uji Terbatas</h2>
-      <p class="muted">Kalau diisi, sistem <strong>hanya</strong> memproses No. Pesanan ini — order asli lain tidak akan tersentuh. Kosongkan untuk kembali ke mode normal (semua order instant).</p>
-      <div class="row">
-        <label for="restrict-order-no">Batasi ke No. Pesanan (pisahkan koma kalau lebih dari satu)</label>
-        <div class="row">
-          <input type="text" id="restrict-order-no" placeholder="SO-000275819" />
-          <button id="save-restrict">Simpan</button>
-        </div>
-      </div>
-    </section>
+    <div class="shell">
+      <nav class="sidenav">
+        <button class="sidenav-item" data-target="view-proses" title="Proses Instant">
+          <svg class="sidenav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/></svg>
+          <span class="sr-only">Proses Instant</span>
+        </button>
+        <button class="sidenav-item" data-target="view-pengaturan" title="Pengaturan">
+          <svg class="sidenav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span class="sr-only">Pengaturan</span>
+        </button>
+        <button class="sidenav-item" data-target="view-printer" title="Printer Cabang">
+          <svg class="sidenav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          <span class="sr-only">Printer Cabang</span>
+        </button>
+        <button class="sidenav-item" data-target="view-uji" title="Mode Uji Terbatas">
+          <svg class="sidenav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v6.5L4.5 18a2 2 0 0 0 1.8 2.9h11.4a2 2 0 0 0 1.8-2.9L15 8.5V2"/><path d="M9 2h6"/><path d="M8 16h8"/></svg>
+          <span class="sr-only">Mode Uji Terbatas</span>
+        </button>
+        <button class="sidenav-item" data-target="view-status" title="Status">
+          <svg class="sidenav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <span class="sr-only">Status</span>
+        </button>
+        <button class="sidenav-item" data-target="view-log" title="Activity Log">
+          <svg class="sidenav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span class="sr-only">Activity Log</span>
+        </button>
+        <div class="sidenav-divider" aria-hidden="true"></div>
+        <button class="sidenav-item sidenav-item-debug" data-target="view-debug" title="Debug / Test Manual">
+          <svg class="sidenav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="6" width="8" height="14" rx="4"/><path d="M19 7l-3 2"/><path d="M5 7l3 2"/><path d="M19 19l-3-2"/><path d="M5 19l3-2"/><path d="M12 6V2"/><path d="M12 12h5"/><path d="M12 12H7"/></svg>
+          <span class="sr-only">Debug / Test Manual</span>
+        </button>
+      </nav>
 
-    <section class="card">
-      <h2>Status</h2>
-      <div id="status" class="status-grid muted">Memuat...</div>
-    </section>
+      <main class="content">
+        <section id="view-proses" class="view">
+          <h3 class="group-label">Proses Instant</h3>
+          <div class="card hero">
+            <div class="row space-between">
+              <div>
+                <div class="row" style="gap:8px">
+                  <h2>Proses Instant</h2>
+                  <button type="button" class="help-toggle" data-help="help-proses" aria-label="Penjelasan lebih lanjut">?</button>
+                </div>
+                <p class="muted">Otomatisasi penuh dari pesanan masuk sampai kurir dipanggil — tanpa klik manual di Jubelio.</p>
+                <div id="help-proses" class="help-body">
+                  <p>Begitu ada pesanan kurir instant baru, sistem memeriksanya setiap <strong>5 menit</strong>. Begitu ditemukan, pesanan langsung diproses: picklist dibuat dan diselesaikan otomatis (qty penuh, TANPA verifikasi fisik), resi dicetak, lalu ditandai siap kirim.</p>
+                  <p><strong id="dispatch-delay-label">30 menit</strong> setelah resi dicetak — dihitung per pesanan, bukan jam bulat — kurir dipanggil sesuai jenisnya:</p>
+                  <ul>
+                    <li><strong>Gojek/Grab</strong> — panggil driver langsung</li>
+                    <li><strong>Kurir instant lain</strong> (SPX Instant, dst.) — ditandai siap kirim; langkah ini saja sudah memicu penjemputan</li>
+                    <li><strong>Kurir reguler</strong> — dibuatkan jadwal pengiriman manual</li>
+                  </ul>
+                </div>
+              </div>
+              <label class="switch switch-lg">
+                <input type="checkbox" id="toggle-enabled" />
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+        </section>
 
-    <section class="card">
-      <h2>Debug / Test Manual (siklus otomatis)</h2>
-      <p class="muted">Jalankan siklus penuh sekarang tanpa nunggu jadwal. Picklist mencakup cetak resi + siap kirim otomatis. Trigger Dispatch cuma memproses order yang resinya sudah dicetak &gt;= jeda menit yang diatur di atas.</p>
-      <div class="row">
-        <button id="trigger-picklist">Trigger Picklist Now</button>
-        <button id="trigger-print">Trigger Print Now</button>
-        <button id="trigger-dispatch">Trigger Dispatch Now</button>
-      </div>
-      <p id="trigger-result" class="muted"></p>
-    </section>
+        <section id="view-pengaturan" class="view">
+          <h3 class="group-label">Pengaturan</h3>
+          <div class="card">
+            <div class="field-row">
+              <label for="employee-id">Email Picker (yang di-assign ke picklist otomatis)</label>
+              <div class="row">
+                <input type="text" id="employee-id" placeholder="email@contoh.com" />
+                <button id="save-employee">Simpan</button>
+              </div>
+            </div>
+            <div class="field-row">
+              <label for="shipper-nik">ID Shipper untuk Panggil Driver (sama seperti "Scan ID Shipper" di Jubelio, huruf besar/kecil harus persis)</label>
+              <div class="row">
+                <input type="text" id="shipper-nik" placeholder="Admin-MP" />
+                <button id="save-shipper">Simpan</button>
+              </div>
+            </div>
+            <div class="field-row row space-between">
+              <label for="toggle-print-picklist">Cetak Picklist (matikan kalau cuma mau selesaikan picking tanpa print kertas)</label>
+              <label class="switch">
+                <input type="checkbox" id="toggle-print-picklist" />
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="field-row">
+              <label for="dispatch-delay-minutes">Jeda sebelum panggil kurir (menit setelah resi dicetak)</label>
+              <div class="row">
+                <input type="text" id="dispatch-delay-minutes" placeholder="30" style="max-width:100px" />
+                <button id="save-dispatch-delay">Simpan</button>
+              </div>
+            </div>
+          </div>
+        </section>
 
-    <section class="card">
-      <h2>Debug / Test Manual (per langkah)</h2>
-      <p class="muted">Satu aksi per tombol, tidak lanjut ke tahap berikutnya. Selalu hanya menyentuh No. Pesanan di Mode Uji Terbatas di atas.</p>
-      <div class="row">
-        <button id="manual-picklist">Trigger Picklist Now</button>
-        <button id="manual-print-resi">Trigger Print Resi Now</button>
-        <button id="manual-siap-kirim">Trigger Siap Dikirim Now</button>
-        <button id="manual-selesaikan">Trigger Selesaikan Now</button>
-        <button id="manual-buat-pengiriman">Trigger Buat Pengiriman (selain Gojek dan Grab)</button>
-        <button id="manual-panggil-driver">Trigger Panggil Driver (Only Gojek dan Grab)</button>
-      </div>
-      <p id="manual-result" class="muted"></p>
-    </section>
+        <section id="view-printer" class="view">
+          <h3 class="group-label">Printer Cabang</h3>
+          <div class="card">
+            <div class="row" style="gap:8px">
+              <p class="muted" style="margin:0">Cetak resi &amp; picklist otomatis terduplikasi ke printer laptop lain.</p>
+              <button type="button" class="help-toggle" data-help="help-printer" aria-label="Penjelasan lebih lanjut">?</button>
+            </div>
+            <div id="help-printer" class="help-body">
+              <p>Tambahkan laptop lain yang punya printer sendiri — boleh di lokasi atau jaringan berbeda. Setiap resi dan picklist yang tercetak di laptop utama akan otomatis dicetak ulang (duplikat) ke semua printer cabang yang terdaftar di sini.</p>
+            </div>
+            <div class="row" style="margin-top:14px">
+              <input type="text" id="print-agent-name" placeholder="Nama printer/laptop, contoh: Laptop Packing 2" />
+              <button id="add-print-agent">Tambah Printer</button>
+            </div>
+            <p id="print-agent-token-result" class="muted"></p>
+            <div class="table-wrap">
+              <table id="print-agents-table">
+                <thead>
+                  <tr><th>Nama</th><th>Ditambahkan</th><th>Terakhir Online</th><th></th></tr>
+                </thead>
+                <tbody id="print-agents-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
 
-    <section class="card">
-      <h2>Activity Log</h2>
-      <p class="muted">Dikelompokkan per picklist — klik baris untuk lihat semua resi di dalamnya.</p>
-      <div id="log-groups"></div>
-    </section>
-  </main>
+        <section id="view-uji" class="view">
+          <h3 class="group-label">Mode Uji Terbatas</h3>
+          <div class="card restrict-card">
+            <div class="row" style="gap:8px">
+              <p class="muted" style="margin:0">Batasi otomatisasi ke satu pesanan tertentu untuk keperluan uji coba.</p>
+              <button type="button" class="help-toggle" data-help="help-uji" aria-label="Penjelasan lebih lanjut">?</button>
+            </div>
+            <div id="help-uji" class="help-body">
+              <p>Kalau kolom di bawah diisi, sistem <strong>hanya</strong> memproses nomor pesanan itu — semua pesanan asli lain tidak akan tersentuh sama sekali. Kosongkan kembali untuk kembali ke mode normal, di mana semua pesanan instant diproses seperti biasa.</p>
+            </div>
+            <div class="field-row" style="margin-top:14px">
+              <label for="restrict-order-no">Batasi ke No. Pesanan (pisahkan koma kalau lebih dari satu)</label>
+              <div class="row">
+                <input type="text" id="restrict-order-no" placeholder="SO-000275819" />
+                <button id="save-restrict">Simpan</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:14px">
+            <div class="row" style="gap:8px">
+              <p class="muted" style="margin:0">Kecualikan pesanan tertentu supaya tidak pernah diproses otomatis.</p>
+              <button type="button" class="help-toggle" data-help="help-exclude" aria-label="Penjelasan lebih lanjut">?</button>
+            </div>
+            <div id="help-exclude" class="help-body">
+              <p>Kebalikan dari Mode Uji Terbatas di atas: nomor pesanan yang diisi di sini <strong>selalu dilewati</strong> oleh semua proses otomatis, apa pun kondisinya — biarpun Mode Uji Terbatas kosong (mode normal) atau lagi aktif. Cocok untuk pesanan yang diketahui bermasalah (misalnya sudah dibatalkan di marketplace) supaya tidak terus dicoba diproses. Kosongkan untuk berhenti mengecualikan.</p>
+            </div>
+            <div class="field-row" style="margin-top:14px">
+              <label for="exclude-order-no">Kecualikan No. Pesanan (pisahkan koma kalau lebih dari satu)</label>
+              <div class="row">
+                <input type="text" id="exclude-order-no" placeholder="SP-2608100SY2C2NU" />
+                <button id="save-exclude">Simpan</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="view-status" class="view">
+          <h3 class="group-label">Status</h3>
+          <div class="card">
+            <div id="status" class="status-grid muted">Memuat...</div>
+          </div>
+        </section>
+
+        <section id="view-log" class="view">
+          <h3 class="group-label">Activity Log</h3>
+          <div class="card">
+            <div class="row" style="gap:8px">
+              <p class="muted" style="margin:0">Riwayat semua aksi otomatis, dikelompokkan per picklist.</p>
+              <button type="button" class="help-toggle" data-help="help-log" aria-label="Penjelasan lebih lanjut">?</button>
+            </div>
+            <div id="help-log" class="help-body">
+              <p>Klik judul grup untuk melihat semua resi di dalamnya. Badge <strong>OK</strong> berarti aksi berhasil, <strong>GAGAL</strong> berarti ada error — lihat kolom Detail untuk pesan errornya. Kalau satu pesanan gagal berulang kali di tahap yang sama, itu tanda perlu dicek manual langsung di Jubelio; sistem akan terus mencoba ulang tiap siklus tanpa batas.</p>
+            </div>
+            <div id="log-groups" style="margin-top:14px"></div>
+          </div>
+        </section>
+
+        <section id="view-debug" class="view">
+          <h3 class="group-label">Debug / Test Manual</h3>
+
+          <div class="card">
+            <h3 class="card-subtitle">Siklus otomatis</h3>
+            <div class="row" style="gap:8px">
+              <p class="muted" style="margin:0">Jalankan satu siklus penuh sekarang, tanpa menunggu jadwal.</p>
+              <button type="button" class="help-toggle" data-help="help-debug-auto" aria-label="Penjelasan lebih lanjut">?</button>
+            </div>
+            <div id="help-debug-auto" class="help-body">
+              <p>Trigger Picklist mencakup cetak resi dan siap kirim otomatis. Trigger Dispatch hanya memproses pesanan yang resinya sudah dicetak melewati jeda yang diatur di halaman Pengaturan.</p>
+            </div>
+            <div class="btn-grid" style="margin-top:14px">
+              <button id="trigger-picklist">Trigger Picklist Now</button>
+              <button id="trigger-print">Trigger Print Now</button>
+              <button id="trigger-dispatch">Trigger Dispatch Now</button>
+            </div>
+            <p id="trigger-result" class="muted"></p>
+          </div>
+
+          <div class="card">
+            <h3 class="card-subtitle">Per langkah</h3>
+            <div class="row" style="gap:8px">
+              <p class="muted" style="margin:0">Satu aksi per klik, khusus pesanan di Mode Uji Terbatas.</p>
+              <button type="button" class="help-toggle" data-help="help-debug-manual" aria-label="Penjelasan lebih lanjut">?</button>
+            </div>
+            <div id="help-debug-manual" class="help-body">
+              <p>Setiap tombol menjalankan satu aksi saja dan tidak otomatis lanjut ke tahap berikutnya. Selalu hanya menyentuh nomor pesanan yang diisi di Mode Uji Terbatas — dipakai untuk menelusuri satu pesanan uji tahap demi tahap.</p>
+            </div>
+            <div class="btn-grid" style="margin-top:14px">
+              <button id="manual-picklist">Trigger Picklist Now</button>
+              <button id="manual-print-resi">Trigger Print Resi Now</button>
+              <button id="manual-siap-kirim">Trigger Siap Dikirim Now</button>
+              <button id="manual-selesaikan">Trigger Selesaikan Now</button>
+              <button id="manual-buat-pengiriman">Trigger Buat Pengiriman (selain Gojek dan Grab)</button>
+              <button id="manual-panggil-driver">Trigger Panggil Driver (Only Gojek dan Grab)</button>
+            </div>
+            <p id="manual-result" class="muted"></p>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
   <script src="app.js"></script>
 </body>
 </html>

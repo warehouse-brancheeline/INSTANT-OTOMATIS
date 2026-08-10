@@ -49,15 +49,20 @@ async function runDispatchJob() {
   const rawCandidates = db.getOrdersReadyForDispatch(delayMinutes);
 
   // SAFETY: getOrdersReadyForDispatch reads local DB state that can predate the
-  // current restrict_order_no value (e.g. an order seen before restriction was
-  // set, or before it was narrowed to a different order) - re-check current
-  // restriction here too, not just at the time each order was first seen/printed,
-  // or a stale local row can slip a real dispatch action through unrestricted.
+  // current restrict_order_no/exclude_order_no values (e.g. an order seen
+  // before restriction was set or narrowed, or before it got added to the
+  // exclude list) - re-check both here too, not just at the time each order
+  // was first seen/printed, or a stale local row can slip a real dispatch
+  // action through unrestricted/excluded.
   const skippedByRestriction = rawCandidates.filter((o) => !orders.matchesRestriction(o));
   for (const o of skippedByRestriction) {
     console.log(`[dispatchJob] skipping ${o.salesorder_no} - outside current restrict_order_no`);
   }
-  const candidates = rawCandidates.filter((o) => orders.matchesRestriction(o));
+  const skippedByExclusion = rawCandidates.filter((o) => orders.matchesExclusion(o));
+  for (const o of skippedByExclusion) {
+    console.log(`[dispatchJob] skipping ${o.salesorder_no} - in exclude_order_no`);
+  }
+  const candidates = rawCandidates.filter((o) => orders.matchesRestriction(o) && !orders.matchesExclusion(o));
 
   if (candidates.length === 0) {
     console.log(`[dispatchJob] no orders printed >= ${delayMinutes}m ago awaiting dispatch`);

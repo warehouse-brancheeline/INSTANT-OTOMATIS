@@ -94,6 +94,11 @@ const DEFAULT_SETTINGS = {
   // print, dispatch) ignores every other live instant order and only touches
   // these - for safely trial-and-error testing against real orders.
   restrict_order_no: '',
+  // Comma-separated salesorder_no list - the opposite of restrict_order_no.
+  // Orders listed here are always skipped by every job, no matter what else
+  // is going on (e.g. an order known to be cancelled or otherwise broken on
+  // the marketplace side, kept out of automation permanently by hand).
+  exclude_order_no: '',
 };
 
 function seedDefaults() {

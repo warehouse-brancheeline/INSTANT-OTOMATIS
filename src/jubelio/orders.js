@@ -75,7 +75,20 @@ function matchesRestriction(o) {
   return allowed.includes(String(o.salesorder_no || '').toUpperCase());
 }
 
-const isEligible = (o) => isInstant(o) && matchesRestriction(o);
+/**
+ * When settings.exclude_order_no is set (comma-separated salesorder_no list),
+ * every job always skips these specific orders regardless of anything else -
+ * a manual blacklist for orders known to be broken (cancelled on the
+ * marketplace side, etc.) that should never be touched by automation.
+ */
+function matchesExclusion(o) {
+  const raw = db.getSetting('exclude_order_no');
+  if (!raw || !raw.trim()) return false;
+  const excluded = raw.split(',').map((s) => s.trim().toUpperCase()).filter(Boolean);
+  return excluded.includes(String(o.salesorder_no || '').toUpperCase());
+}
+
+const isEligible = (o) => isInstant(o) && matchesRestriction(o) && !matchesExclusion(o);
 
 /**
  * Orders sitting in "Siap Proses" (Penjualan tab), filtered to instant-courier orders only.
@@ -326,6 +339,7 @@ module.exports = {
   isOtherInstantShipper,
   isInstantShipper,
   matchesRestriction,
+  matchesExclusion,
   getReadyToProcessInstantOrders,
   moveToReadyToPick,
   getReadyToPickInstantOrders,

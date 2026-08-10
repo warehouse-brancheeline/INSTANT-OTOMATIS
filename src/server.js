@@ -159,7 +159,7 @@ function createServer() {
   });
 
   app.post('/api/settings', (req, res) => {
-    const { feature_enabled, employee_id, shipper_nik, print_picklist_enabled, dispatch_delay_minutes, restrict_order_no } = req.body || {};
+    const { feature_enabled, employee_id, shipper_nik, print_picklist_enabled, dispatch_delay_minutes, restrict_order_no, exclude_order_no } = req.body || {};
     if (feature_enabled !== undefined) {
       const wasEnabled = db.getSetting('feature_enabled') === '1';
       const nowEnabled = !!feature_enabled;
@@ -186,6 +186,9 @@ function createServer() {
     }
     if (restrict_order_no !== undefined) {
       db.setSetting('restrict_order_no', String(restrict_order_no).trim());
+    }
+    if (exclude_order_no !== undefined) {
+      db.setSetting('exclude_order_no', String(exclude_order_no).trim());
     }
     res.json(db.getAllSettings());
   });
