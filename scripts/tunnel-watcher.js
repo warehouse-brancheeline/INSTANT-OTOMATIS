@@ -61,3 +61,28 @@ child.on('exit', (code) => {
 for (const sig of ['SIGINT', 'SIGTERM']) {
   process.on(sig, () => child.kill(sig));
 }
+
+// Twice now the public URL has silently stopped resolving at Cloudflare's
+// edge while cloudflared itself kept running and never logged an error -
+// nothing in the code above would ever notice that on its own. This checks
+// the actual public URL periodically and forces a restart (which gets a
+// fresh, working URL, auto-published like any other restart) the moment it
+// stops answering, instead of waiting for someone to notice it's down.
+const HEALTH_CHECK_INTERVAL_MS = 5 * 60 * 1000;
+const HEALTH_CHECK_TIMEOUT_MS = 15000;
+
+async function checkTunnelHealth() {
+  if (!lastKnownUrl) return;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS);
+    const res = await fetch(`${lastKnownUrl}/login.html`, { signal: controller.signal });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error(`status ${res.status}`);
+  } catch (err) {
+    console.error(`[tunnel-watcher] link publik tidak merespons (${err.message}) - restart untuk dapat link baru`);
+    child.kill();
+  }
+}
+
+setInterval(checkTunnelHealth, HEALTH_CHECK_INTERVAL_MS);
