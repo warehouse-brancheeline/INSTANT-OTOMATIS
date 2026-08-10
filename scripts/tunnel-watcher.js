@@ -68,7 +68,7 @@ for (const sig of ['SIGINT', 'SIGTERM']) {
 // the actual public URL periodically and forces a restart (which gets a
 // fresh, working URL, auto-published like any other restart) the moment it
 // stops answering, instead of waiting for someone to notice it's down.
-const HEALTH_CHECK_INTERVAL_MS = 5 * 60 * 1000;
+const HEALTH_CHECK_INTERVAL_MS = 60 * 1000;
 const HEALTH_CHECK_TIMEOUT_MS = 15000;
 
 async function checkTunnelHealth() {
