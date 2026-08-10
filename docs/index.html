@@ -75,10 +75,29 @@
     .spinner { animation: none; }
   }
   @keyframes spin { to { transform: rotate(360deg); } }
+  button.google {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 11px 16px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--ink);
+    font-size: 14.5px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button.google:hover { opacity: 0.9; }
+  button.google:disabled { opacity: 0.6; cursor: default; }
+  button.google svg { width: 18px; height: 18px; flex-shrink: 0; }
   a.manual {
     display: inline-block;
-    color: var(--accent);
-    font-size: 14px;
+    margin-top: 18px;
+    color: var(--ink-muted);
+    font-size: 13px;
     text-decoration: none;
     border-bottom: 1px solid currentColor;
   }
@@ -89,38 +108,122 @@
     border-radius: 4px;
     padding: 10px 14px;
     font-size: 13.5px;
-    margin-bottom: 16px;
+    margin-top: 16px;
+    text-align: left;
   }
+  .hidden { display: none; }
 </style>
 </head>
 <body>
   <div class="card">
     <div class="label">BCL Gudang Pusat</div>
     <h1>WEB INSTANT</h1>
-    <div class="spinner" id="spinner"></div>
-    <p id="status">Menghubungkan ke dashboard...</p>
-    <div class="error" id="error">Tidak bisa memuat link dashboard. Coba muat ulang halaman ini.</div>
-    <a class="manual" id="manual-link" href="#" style="display:none">Buka manual kalau tidak otomatis pindah</a>
+
+    <div id="signin-view">
+      <p>Masuk dengan akun Google gudang untuk membuka dashboard.</p>
+      <button class="google" id="google-btn" type="button">
+        <svg viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.6 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.5 5.1 29.6 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.2-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.5 5.1 29.6 3 24 3c-7.7 0-14.3 4.4-17.7 10.7z"/><path fill="#4CAF50" d="M24 45c5.5 0 10.4-1.9 14.2-5.1l-6.6-5.4C29.6 36.2 26.9 37 24 37c-5.3 0-9.7-3.4-11.3-8.1l-6.6 5.1C9.6 40.5 16.2 45 24 45z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.2 5.5l6.6 5.4C41.5 35.9 45 30.4 45 24c0-1.2-.1-2.4-.4-3.5z"/></svg>
+        Masuk dengan Google
+      </button>
+      <a class="manual" id="manual-link" href="#">atau buka dashboard langsung (kalau sudah login) →</a>
+    </div>
+
+    <div class="hidden" id="loading-view">
+      <div class="spinner"></div>
+      <p id="loading-status">Menghubungkan ke dashboard...</p>
+    </div>
+
+    <div class="error" id="error"></div>
   </div>
-  <script>
-    fetch('tunnel-url.txt?t=' + Date.now(), { cache: 'no-store' })
-      .then((res) => {
-        if (!res.ok) throw new Error('not ok');
-        return res.text();
-      })
-      .then((text) => {
-        const url = text.trim();
-        if (!url) throw new Error('empty');
-        document.getElementById('manual-link').href = url;
-        document.getElementById('manual-link').style.display = 'inline-block';
-        document.getElementById('status').textContent = 'Memindahkan ke dashboard...';
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyB_9SG3mZXiYgqIHUeG9OwBirIRYyy4njE",
+      authDomain: "web-instant-bcl.firebaseapp.com",
+      projectId: "web-instant-bcl",
+      storageBucket: "web-instant-bcl.firebasestorage.app",
+      messagingSenderId: "213247747437",
+      appId: "1:213247747437:web:f213e1ae68223d937e2664",
+    };
+    const firebaseApp = initializeApp(firebaseConfig);
+    const auth = getAuth(firebaseApp);
+    const provider = new GoogleAuthProvider();
+
+    const signinView = document.getElementById('signin-view');
+    const loadingView = document.getElementById('loading-view');
+    const loadingStatus = document.getElementById('loading-status');
+    const errorEl = document.getElementById('error');
+    const googleBtn = document.getElementById('google-btn');
+    const manualLink = document.getElementById('manual-link');
+
+    function showError(message) {
+      errorEl.textContent = message;
+      errorEl.style.display = 'block';
+      signinView.classList.remove('hidden');
+      loadingView.classList.add('hidden');
+      googleBtn.disabled = false;
+    }
+
+    async function getCurrentDashboardUrl() {
+      const res = await fetch('tunnel-url.txt?t=' + Date.now(), { cache: 'no-store' });
+      if (!res.ok) throw new Error('tidak bisa membaca alamat dashboard terbaru');
+      const url = (await res.text()).trim();
+      if (!url) throw new Error('alamat dashboard kosong');
+      return url;
+    }
+
+    // "Buka dashboard langsung" - for staff who are already logged in on the
+    // target origin from before; just forwards, no Google sign-in needed.
+    manualLink.addEventListener('click', async (e) => {
+      e.preventDefault();
+      signinView.classList.add('hidden');
+      loadingView.classList.remove('hidden');
+      loadingStatus.textContent = 'Menghubungkan ke dashboard...';
+      try {
+        const url = await getCurrentDashboardUrl();
         window.location.replace(url);
-      })
-      .catch(() => {
-        document.getElementById('spinner').style.display = 'none';
-        document.getElementById('status').style.display = 'none';
-        document.getElementById('error').style.display = 'block';
-      });
+      } catch (err) {
+        showError('Tidak bisa memuat link dashboard. Coba muat ulang halaman ini.');
+      }
+    });
+
+    googleBtn.addEventListener('click', async () => {
+      errorEl.style.display = 'none';
+      googleBtn.disabled = true;
+      try {
+        const result = await signInWithPopup(auth, provider);
+        const idToken = await result.user.getIdToken();
+
+        signinView.classList.add('hidden');
+        loadingView.classList.remove('hidden');
+        loadingStatus.textContent = 'Memeriksa akses...';
+
+        const dashboardUrl = await getCurrentDashboardUrl();
+
+        const loginRes = await fetch(dashboardUrl + '/api/login-firebase', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken }),
+        });
+
+        if (!loginRes.ok) {
+          const body = await loginRes.json().catch(() => ({}));
+          if (loginRes.status === 403) {
+            throw new Error('Akun Google ini tidak diizinkan mengakses dashboard.');
+          }
+          throw new Error(body.error || 'Gagal masuk, coba lagi.');
+        }
+
+        loadingStatus.textContent = 'Berhasil masuk, memindahkan ke dashboard...';
+        window.location.replace(dashboardUrl);
+      } catch (err) {
+        showError(err.message || 'Gagal masuk dengan Google. Coba lagi.');
+      }
+    });
   </script>
 </body>
 </html>
