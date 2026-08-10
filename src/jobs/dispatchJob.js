@@ -2,6 +2,33 @@ const orders = require('../jubelio/orders');
 const db = require('../db');
 const logger = require('../logger');
 
+// After this many consecutive dispatch failures for the same order, stop
+// retrying it automatically - a stuck order (cancelled, split into multiple
+// marketplace packages, etc.) would otherwise get hammered every single
+// cycle forever, spamming the log and burning Jubelio API calls for
+// something only a human can actually fix.
+const DISPATCH_FAIL_LIMIT = 5;
+
+/** Records a dispatch failure and gives up on the order once it's failed too
+ * many times in a row, logging one clear final entry so it's easy to spot in
+ * the activity log instead of scrolling past endless identical failures. */
+function recordDispatchFailure(o, actionLabel, detail) {
+  db.markDispatched(o.salesorder_id, false);
+  logger.log(o.salesorder_no, actionLabel, false, detail, o.picklist_no);
+
+  const failCount = db.getDispatchFailCount(o.salesorder_id);
+  if (failCount >= DISPATCH_FAIL_LIMIT) {
+    db.giveUpOnDispatch(o.salesorder_id);
+    logger.log(
+      o.salesorder_no,
+      'dispatch-manual-needed',
+      false,
+      `Gagal ${failCount}x berturut-turut - berhenti dicoba otomatis, cek order ini langsung di Jubelio (kemungkinan dibatalkan atau perlu ditangani manual)`,
+      o.picklist_no
+    );
+  }
+}
+
 /**
  * Dispatches the courier for any order whose resi was printed at least
  * dispatch_delay_minutes ago and hasn't been dispatched yet - measured per
@@ -45,11 +72,11 @@ async function runDispatchJob() {
     try {
       await orders.markAsComplete([o.salesorder_id]);
       db.markPacked(o.salesorder_id, true);
-      logger.log(o.salesorder_no, 'mark-complete', true, 'siap kirim (late)');
+      logger.log(o.salesorder_no, 'mark-complete', true, 'siap kirim (late)', o.picklist_no);
     } catch (err) {
       const detail = err.response ? JSON.stringify(err.response.data) : err.message;
       db.markPacked(o.salesorder_id, false);
-      logger.log(o.salesorder_no, 'mark-complete', false, detail);
+      logger.log(o.salesorder_no, 'mark-complete', false, detail, o.picklist_no);
     }
   }
 
@@ -85,7 +112,7 @@ async function dispatchGojekGrab(targets) {
   } catch (err) {
     const detail = err.response ? JSON.stringify(err.response.data) : err.message;
     console.error(`[dispatchJob] failed to resolve shipper_nik "${shipperNik}": ${detail}`);
-    for (const o of targets) logger.log(o.salesorder_no, 'panggil-driver', false, detail);
+    for (const o of targets) recordDispatchFailure(o, 'panggil-driver', detail);
     return { dispatched: 0, failed: targets.length };
   }
 
@@ -101,23 +128,19 @@ async function dispatchGojekGrab(targets) {
     for (const o of targets) {
       const item = byResultId[o.salesorder_id];
       const success = !!(item && (item.shipment_header_id || item.shipment_no));
-      db.markDispatched(o.salesorder_id, success);
-      logger.log(
-        o.salesorder_no,
-        'panggil-driver',
-        success,
-        success ? `shipment_no=${item.shipment_no}` : JSON.stringify(item || 'no response entry')
-      );
-      if (success) dispatched += 1;
-      else failed += 1;
+      if (success) {
+        db.markDispatched(o.salesorder_id, true);
+        logger.log(o.salesorder_no, 'panggil-driver', true, `shipment_no=${item.shipment_no}`, o.picklist_no);
+        dispatched += 1;
+      } else {
+        recordDispatchFailure(o, 'panggil-driver', JSON.stringify(item || 'no response entry'));
+        failed += 1;
+      }
     }
     return { dispatched, failed };
   } catch (err) {
     const detail = err.response ? JSON.stringify(err.response.data) : err.message;
-    for (const o of targets) {
-      db.markDispatched(o.salesorder_id, false);
-      logger.log(o.salesorder_no, 'panggil-driver', false, detail);
-    }
+    for (const o of targets) recordDispatchFailure(o, 'panggil-driver', detail);
     return { dispatched: 0, failed: targets.length };
   }
 }
@@ -141,25 +164,19 @@ async function dispatchOtherInstant(targets) {
     for (const o of targets) {
       const item = byResultId[o.salesorder_id];
       const success = !!(item && item.shipment_no);
-      db.markDispatched(o.salesorder_id, success);
-      logger.log(
-        o.salesorder_no,
-        'siap-kirim',
-        success,
-        success
-          ? `AWB dibuat, shipment_no=${item.shipment_no}`
-          : `AWB gagal/tidak dapat tracking: ${JSON.stringify(item || 'no response entry')}`
-      );
-      if (success) dispatched += 1;
-      else failed += 1;
+      if (success) {
+        db.markDispatched(o.salesorder_id, true);
+        logger.log(o.salesorder_no, 'siap-kirim', true, `AWB dibuat, shipment_no=${item.shipment_no}`, o.picklist_no);
+        dispatched += 1;
+      } else {
+        recordDispatchFailure(o, 'siap-kirim', `AWB gagal/tidak dapat tracking: ${JSON.stringify(item || 'no response entry')}`);
+        failed += 1;
+      }
     }
     return { dispatched, failed };
   } catch (err) {
     const detail = err.response ? JSON.stringify(err.response.data) : err.message;
-    for (const o of targets) {
-      db.markDispatched(o.salesorder_id, false);
-      logger.log(o.salesorder_no, 'siap-kirim', false, detail);
-    }
+    for (const o of targets) recordDispatchFailure(o, 'siap-kirim', detail);
     return { dispatched: 0, failed: targets.length };
   }
 }
@@ -176,8 +193,7 @@ async function dispatchRegular(targets) {
     const courier = courierList.find((c) => shipperName.startsWith((c.courier_name || '').toLowerCase()));
     if (!courier) {
       const detail = `courier untuk "${o.shipper}" tidak ditemukan di daftar /wms/couriers`;
-      db.markDispatched(o.salesorder_id, false);
-      logger.log(o.salesorder_no, 'buat-pengiriman', false, detail);
+      recordDispatchFailure(o, 'buat-pengiriman', detail);
       failed += 1;
       continue;
     }
@@ -194,12 +210,11 @@ async function dispatchRegular(targets) {
       if (!shipmentHeaderId) throw new Error(`could not resolve header id for ${shipmentNo}`);
       await orders.addOrderToShipment(shipmentHeaderId, o.salesorder_id, employeeId);
       db.markDispatched(o.salesorder_id, true);
-      logger.log(o.salesorder_no, 'buat-pengiriman', true, `${shipmentNo}, courier=${courier.courier_name}`);
+      logger.log(o.salesorder_no, 'buat-pengiriman', true, `${shipmentNo}, courier=${courier.courier_name}`, o.picklist_no);
       dispatched += 1;
     } catch (err) {
       const detail = err.response ? JSON.stringify(err.response.data) : err.message;
-      db.markDispatched(o.salesorder_id, false);
-      logger.log(o.salesorder_no, 'buat-pengiriman', false, detail);
+      recordDispatchFailure(o, 'buat-pengiriman', detail);
       failed += 1;
     }
   }

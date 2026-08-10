@@ -15,6 +15,7 @@ db.exec(`
     salesorder_id INTEGER PRIMARY KEY,
     salesorder_no TEXT,
     shipper TEXT,
+    picklist_no TEXT,
     printed_at TEXT,
     print_success INTEGER DEFAULT 0,
     packed_at TEXT,
@@ -33,6 +34,30 @@ db.exec(`
     success INTEGER NOT NULL,
     detail TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS print_agents (
+    agent_id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    token TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    last_seen_at TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS print_jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    label TEXT,
+    files TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS print_job_acks (
+    job_id INTEGER NOT NULL,
+    agent_id TEXT NOT NULL,
+    success INTEGER,
+    detail TEXT,
+    acked_at TEXT,
+    PRIMARY KEY (job_id, agent_id)
+  );
 `);
 
 // Migrations for databases created before these columns existed.
@@ -40,6 +65,8 @@ for (const stmt of [
   'ALTER TABLE activity_log ADD COLUMN picklist_no TEXT',
   'ALTER TABLE processed_orders ADD COLUMN packed_at TEXT',
   'ALTER TABLE processed_orders ADD COLUMN pack_success INTEGER DEFAULT 0',
+  'ALTER TABLE processed_orders ADD COLUMN picklist_no TEXT',
+  'ALTER TABLE processed_orders ADD COLUMN dispatch_fail_count INTEGER DEFAULT 0',
 ]) {
   try {
     db.exec(stmt);
@@ -104,15 +131,16 @@ function getProcessedOrder(salesorderId) {
     .get(salesorderId);
 }
 
-function upsertOrderSeen(salesorderId, salesorderNo, shipper) {
+function upsertOrderSeen(salesorderId, salesorderNo, shipper, picklistNo) {
   db.prepare(
-    `INSERT INTO processed_orders (salesorder_id, salesorder_no, shipper, updated_at)
-     VALUES (?, ?, ?, datetime('now'))
+    `INSERT INTO processed_orders (salesorder_id, salesorder_no, shipper, picklist_no, updated_at)
+     VALUES (?, ?, ?, ?, datetime('now'))
      ON CONFLICT(salesorder_id) DO UPDATE SET
        salesorder_no = excluded.salesorder_no,
        shipper = excluded.shipper,
+       picklist_no = COALESCE(excluded.picklist_no, processed_orders.picklist_no),
        updated_at = datetime('now')`
-  ).run(salesorderId, salesorderNo, shipper);
+  ).run(salesorderId, salesorderNo, shipper, picklistNo || null);
 }
 
 function markPrinted(salesorderId, success) {
@@ -131,12 +159,41 @@ function markPacked(salesorderId, success) {
   ).run(success ? 1 : 0, salesorderId);
 }
 
+/**
+ * dispatch_success: NULL = never tried, 0 = failed (will retry), 1 = done,
+ * -1 = gave up after too many consecutive failures (see giveUpOnDispatch) -
+ * excluded from retry so a permanently-stuck order (e.g. one Jubelio itself
+ * refuses via API, needing manual handling in the marketplace seller center)
+ * doesn't get hammered forever.
+ */
 function markDispatched(salesorderId, success) {
+  if (success) {
+    db.prepare(
+      `UPDATE processed_orders
+       SET dispatched_at = datetime('now'), dispatch_success = 1, dispatch_fail_count = 0, updated_at = datetime('now')
+       WHERE salesorder_id = ?`
+    ).run(salesorderId);
+  } else {
+    db.prepare(
+      `UPDATE processed_orders
+       SET dispatched_at = datetime('now'), dispatch_success = 0,
+           dispatch_fail_count = dispatch_fail_count + 1, updated_at = datetime('now')
+       WHERE salesorder_id = ?`
+    ).run(salesorderId);
+  }
+}
+
+function getDispatchFailCount(salesorderId) {
+  const row = db
+    .prepare('SELECT dispatch_fail_count FROM processed_orders WHERE salesorder_id = ?')
+    .get(salesorderId);
+  return row ? row.dispatch_fail_count : 0;
+}
+
+function giveUpOnDispatch(salesorderId) {
   db.prepare(
-    `UPDATE processed_orders
-     SET dispatched_at = datetime('now'), dispatch_success = ?, updated_at = datetime('now')
-     WHERE salesorder_id = ?`
-  ).run(success ? 1 : 0, salesorderId);
+    `UPDATE processed_orders SET dispatch_success = -1, updated_at = datetime('now') WHERE salesorder_id = ?`
+  ).run(salesorderId);
 }
 
 /**
@@ -149,7 +206,7 @@ function getOrdersReadyForDispatch(delayMinutes) {
     .prepare(
       `SELECT * FROM processed_orders
        WHERE print_success = 1
-         AND (dispatch_success IS NULL OR dispatch_success != 1)
+         AND (dispatch_success IS NULL OR dispatch_success = 0)
          AND printed_at IS NOT NULL
          AND printed_at <= datetime('now', '-' || ? || ' minutes')`
     )
@@ -169,6 +226,87 @@ function getRecentLogs(limit = 200) {
     .all(limit);
 }
 
+/**
+ * Registers a remote print agent (a laptop with its own printer) and issues it
+ * a bearer token. The token is only ever returned here, at creation time - it's
+ * shown once in the dashboard for the operator to copy into that laptop's
+ * print-agent config.
+ */
+function createPrintAgent(agentId, name, token) {
+  db.prepare(
+    `INSERT INTO print_agents (agent_id, name, token, created_at) VALUES (?, ?, ?, datetime('now'))`
+  ).run(agentId, name, token);
+}
+
+function listPrintAgents() {
+  return db
+    .prepare('SELECT agent_id, name, created_at, last_seen_at FROM print_agents ORDER BY created_at ASC')
+    .all();
+}
+
+function getPrintAgentByToken(token) {
+  return db.prepare('SELECT * FROM print_agents WHERE token = ?').get(token);
+}
+
+function getPrintAgentById(agentId) {
+  return db.prepare('SELECT * FROM print_agents WHERE agent_id = ?').get(agentId);
+}
+
+function touchPrintAgent(agentId) {
+  db.prepare(`UPDATE print_agents SET last_seen_at = datetime('now') WHERE agent_id = ?`).run(agentId);
+}
+
+function deletePrintAgent(agentId) {
+  db.prepare('DELETE FROM print_agents WHERE agent_id = ?').run(agentId);
+  db.prepare('DELETE FROM print_job_acks WHERE agent_id = ?').run(agentId);
+}
+
+/** files: array of filenames living in the print_queue directory. */
+function createPrintJob(label, files) {
+  const result = db
+    .prepare(`INSERT INTO print_jobs (created_at, label, files) VALUES (datetime('now'), ?, ?)`)
+    .run(label || null, JSON.stringify(files));
+  return result.lastInsertRowid;
+}
+
+/** Jobs not yet acknowledged (successfully or not) by this specific agent. */
+function getPendingJobsForAgent(agentId) {
+  const rows = db
+    .prepare(
+      `SELECT pj.id, pj.created_at, pj.label, pj.files
+       FROM print_jobs pj
+       LEFT JOIN print_job_acks ack ON ack.job_id = pj.id AND ack.agent_id = ?
+       WHERE ack.job_id IS NULL
+       ORDER BY pj.id ASC`
+    )
+    .all(agentId);
+  return rows.map((r) => ({ ...r, files: JSON.parse(r.files) }));
+}
+
+function ackPrintJob(jobId, agentId, success, detail) {
+  db.prepare(
+    `INSERT INTO print_job_acks (job_id, agent_id, success, detail, acked_at)
+     VALUES (?, ?, ?, ?, datetime('now'))
+     ON CONFLICT(job_id, agent_id) DO UPDATE SET
+       success = excluded.success, detail = excluded.detail, acked_at = excluded.acked_at`
+  ).run(jobId, agentId, success ? 1 : 0, detail || null);
+}
+
+/** Print jobs older than the retention window - safe to delete files + rows for. */
+function getStalePrintJobs(hoursOld) {
+  const rows = db
+    .prepare(
+      `SELECT id, files FROM print_jobs WHERE created_at <= datetime('now', '-' || ? || ' hours')`
+    )
+    .all(hoursOld);
+  return rows.map((r) => ({ ...r, files: JSON.parse(r.files) }));
+}
+
+function deletePrintJob(jobId) {
+  db.prepare('DELETE FROM print_jobs WHERE id = ?').run(jobId);
+  db.prepare('DELETE FROM print_job_acks WHERE job_id = ?').run(jobId);
+}
+
 module.exports = {
   db,
   getSetting,
@@ -179,7 +317,20 @@ module.exports = {
   markPrinted,
   markPacked,
   markDispatched,
+  getDispatchFailCount,
+  giveUpOnDispatch,
   getOrdersReadyForDispatch,
   logActivity,
   getRecentLogs,
+  createPrintAgent,
+  listPrintAgents,
+  getPrintAgentByToken,
+  getPrintAgentById,
+  touchPrintAgent,
+  deletePrintAgent,
+  createPrintJob,
+  getPendingJobsForAgent,
+  ackPrintJob,
+  getStalePrintJobs,
+  deletePrintJob,
 };
