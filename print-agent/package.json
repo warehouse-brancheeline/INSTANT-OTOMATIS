@@ -1,0 +1,15 @@
+{
+  "name": "web-instant-print-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Lightweight remote print client for WEB INSTANT - polls the central server for print jobs and prints them on this laptop's own printer.",
+  "main": "agent.js",
+  "scripts": {
+    "start": "node agent.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.5",
+    "pdf-to-printer": "^5.1.0"
+  }
+}
